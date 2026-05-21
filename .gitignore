@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.streamlit/
+data/sales_data.csv
+scratch/test_report.docx
+.idea/
+.vscode/
