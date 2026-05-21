@@ -3,8 +3,7 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-
-api_key = os.getenv("GROQ_API_KEY") or ""
+api_key = os.getenv("GROQ_API_KEY")
 headers = {"Authorization": f"Bearer {api_key}"}
 
 try:
@@ -12,9 +11,9 @@ try:
     if response.status_code == 200:
         models = response.json().get("data", [])
         print("Available Groq Models:")
-        for m in models:
-            print(f"- {m['id']} (Owned by: {m['owned_by']})")
+        for model in sorted(models, key=lambda x: x["id"]):
+            print(f"- {model['id']}")
     else:
-        print(f"Failed to fetch models: {response.status_code} - {response.text}")
+        print(f"Error {response.status_code}: {response.text}")
 except Exception as e:
-    print("Error:", e)
+    print(f"Exception: {e}")
