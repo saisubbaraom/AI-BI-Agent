@@ -51,7 +51,7 @@ def get_llm(temperature=0.3, streaming=False, callbacks=None):
 
     # Fallback 1: llama-3.1-8b-instant if the primary model is not that
     if primary_model != "llama-3.1-8b-instant":
-        fallback_groq = ChatOpenAI(
+        fallback_groq1 = ChatOpenAI(
             model="llama-3.1-8b-instant",
             api_key=api_key,
             base_url=GROQ_BASE_URL,
@@ -59,9 +59,33 @@ def get_llm(temperature=0.3, streaming=False, callbacks=None):
             streaming=streaming,
             callbacks=callbacks
         )
-        fallbacks.append(fallback_groq)
+        fallbacks.append(fallback_groq1)
 
-    # Fallback 2: gemini-2.5-flash if GEMINI_API_KEY is present
+    # Fallback 2: qwen/qwen3-32b if the primary model is not that
+    if primary_model != "qwen/qwen3-32b":
+        fallback_groq2 = ChatOpenAI(
+            model="qwen/qwen3-32b",
+            api_key=api_key,
+            base_url=GROQ_BASE_URL,
+            temperature=temperature,
+            streaming=streaming,
+            callbacks=callbacks
+        )
+        fallbacks.append(fallback_groq2)
+
+    # Fallback 3: meta-llama/llama-4-scout-17b-16e-instruct if the primary model is not that
+    if primary_model != "meta-llama/llama-4-scout-17b-16e-instruct":
+        fallback_groq3 = ChatOpenAI(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            api_key=api_key,
+            base_url=GROQ_BASE_URL,
+            temperature=temperature,
+            streaming=streaming,
+            callbacks=callbacks
+        )
+        fallbacks.append(fallback_groq3)
+
+    # Fallback 4: gemini-2.5-flash if GEMINI_API_KEY is present
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     if gemini_api_key and "your_gemini_api_key" not in gemini_api_key:
         fallback_gemini = ChatOpenAI(

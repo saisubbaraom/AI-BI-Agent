@@ -30,8 +30,8 @@ class SimpleDocumentStore:
         
         # Build retriever from current document collection
         self.retriever = BM25Retriever.from_documents(self.documents)
-        # Configure to return top 3 matching chunks
-        self.retriever.k = 3
+        # Configure to return top 5 matching chunks
+        self.retriever.k = 5
 
     def query(self, query_str: str) -> list[Document]:
         """Queries the document store and returns relevant documents."""

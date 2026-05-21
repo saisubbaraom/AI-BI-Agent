@@ -23,11 +23,9 @@ class TestChatRefactor(unittest.TestCase):
                 fallbacks = getattr(llm, "fallbacks", [])
                 self.assertTrue(len(fallbacks) >= 2, f"Expected at least 2 fallbacks, got {len(fallbacks)}")
                 
-                fb0_model = getattr(fallbacks[0], "model_name", getattr(fallbacks[0], "model", None))
-                fb1_model = getattr(fallbacks[1], "model_name", getattr(fallbacks[1], "model", None))
-                
-                self.assertEqual(fb0_model, "llama-3.1-8b-instant")
-                self.assertEqual(fb1_model, "gemini-2.5-flash")
+                fallback_models = [getattr(fb, "model_name", getattr(fb, "model", None)) for fb in fallbacks]
+                self.assertIn("llama-3.1-8b-instant", fallback_models)
+                self.assertIn("gemini-2.5-flash", fallback_models)
 
     def test_summarize_chat_history(self):
         print("Testing chat history summarization...")
