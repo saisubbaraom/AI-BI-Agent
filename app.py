@@ -37,7 +37,63 @@ if st.session_state.get("_server_pid") != _SERVER_STAMP:
     st.session_state.clear()
     st.session_state["_server_pid"] = _SERVER_STAMP
 
+def reset_analysis_state(clear_files=False, reset_widgets=False):
+    """
+    Clears all analysis-related session state variables and the Streamlit caches.
+    If clear_files is True, also clears uploaded files metadata.
+    If reset_widgets is True, increments uploader_version to force-clear file uploader widgets.
+    """
+    had_previous_state = (
+        st.session_state.get("df_raw") is not None or 
+        st.session_state.get("analysis_bundle") is not None or
+        st.session_state.get("is_preprocessed", False)
+    )
+    
+    keys_to_clear = [
+        "analysis_bundle",
+        "df_raw",
+        "merged_df",
+        "dataset_context",
+        "chat_history",
+        "insights",
+        "recommendations",
+        "kpis",
+        "visualizations",
+        "doc_store",
+        "is_preprocessed",
+        "hidden_columns",
+        "excluded_columns",
+        "detected_pii",
+        "detected_ids",
+        "chat_summary",
+        "last_summary_length"
+    ]
+    
+    if clear_files:
+        keys_to_clear.extend([
+            "last_uploaded_name",
+            "uploaded_dfs",
+            "join_configs"
+        ])
+        
+    if reset_widgets:
+        st.session_state["uploader_version"] = st.session_state.get("uploader_version", 0) + 1
+        
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
+            
+    # Clear Streamlit's built-in caches
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    
+    # Set message flag only if there was a previous state to clear
+    if had_previous_state:
+        st.session_state["_state_cleared_message"] = True
+
 # Initialize Session States
+if "uploader_version" not in st.session_state:
+    st.session_state["uploader_version"] = 0
 if "analysis_bundle" not in st.session_state:
     st.session_state["analysis_bundle"] = None
 if "df_raw" not in st.session_state:
@@ -98,8 +154,8 @@ with st.sidebar:
         
     st.info("💡 **Auto-Fallback**: If the primary model hits a daily rate limit (429), it will automatically fall back to **llama-3.1-8b-instant** to complete your analysis.")
 
-    if st.button("🔄 Clear App Cache / Reset", use_container_width=True, help="Clear session cache and reload the application."):
-        st.session_state.clear()
+    if st.button("🔄 Reset Analysis", use_container_width=True, help="Clear session cache, uploaded datasets, and reload the application."):
+        reset_analysis_state(clear_files=True, reset_widgets=True)
         st.rerun()
         
     st.markdown("---")
@@ -127,6 +183,12 @@ with st.sidebar:
 # 3. Main Header
 st.markdown('<div class="main-title">Business Analyst AI Agent</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Upload your raw business data and receive executive-level summaries, KPIs, interactive charts, and actionable strategic recommendations instantly.</div>', unsafe_allow_html=True)
+
+# Show state cleared message if triggered
+if st.session_state.get("_state_cleared_message"):
+    st.info("Dataset configuration changed. Previous analysis has been cleared.")
+    st.toast("Dataset configuration changed. Previous analysis has been cleared.")
+    st.session_state["_state_cleared_message"] = False
 
 # Helper to read file
 def load_uploaded_file(uploaded_file):
@@ -165,38 +227,27 @@ upload_mode = st.radio(
 
 if upload_mode != st.session_state["upload_mode"]:
     st.session_state["upload_mode"] = upload_mode
-    st.session_state["analysis_bundle"] = None
-    st.session_state["df_raw"] = None
-    st.session_state["chat_history"] = []
-    st.session_state["last_uploaded_name"] = None
-    st.session_state["uploaded_dfs"] = {}
-    st.session_state["is_preprocessed"] = False
-    st.session_state["hidden_columns"] = []
-    st.session_state["excluded_columns"] = []
-    st.session_state["join_configs"] = []
-    st.session_state["detected_pii"] = []
-    st.session_state["detected_ids"] = []
+    reset_analysis_state(clear_files=True, reset_widgets=True)
     st.rerun()
 
 # 4. File Upload Section based on Mode
 if upload_mode == "Single Dataset":
     uploaded_file = st.file_uploader(
         "Upload dataset (CSV, XLSX, XLS, or Parquet)",
-        type=["csv", "xlsx", "xls", "parquet"]
+        type=["csv", "xlsx", "xls", "parquet"],
+        key=f"uploader_single_{st.session_state.get('uploader_version', 0)}"
     )
     
-    if uploaded_file is not None:
+    # If a file was previously uploaded, but is now removed/cleared
+    if uploaded_file is None and st.session_state["last_uploaded_name"] is not None:
+        reset_analysis_state(clear_files=True)
+        st.rerun()
+        
+    elif uploaded_file is not None:
         file_name = uploaded_file.name
         if st.session_state["last_uploaded_name"] != file_name:
-            st.session_state["analysis_bundle"] = None
-            st.session_state["df_raw"] = None
-            st.session_state["chat_history"] = []
+            reset_analysis_state(clear_files=True)
             st.session_state["last_uploaded_name"] = file_name
-            st.session_state["is_preprocessed"] = False
-            st.session_state["hidden_columns"] = []
-            st.session_state["excluded_columns"] = []
-            st.session_state["detected_pii"] = []
-            st.session_state["detected_ids"] = []
             st.rerun()
             
         if st.session_state["df_raw"] is None:
@@ -212,23 +263,20 @@ else:
     uploaded_files = st.file_uploader(
         "Upload multiple datasets (CSV, XLSX, XLS, or Parquet)",
         type=["csv", "xlsx", "xls", "parquet"],
-        accept_multiple_files=True
+        accept_multiple_files=True,
+        key=f"uploader_multi_{st.session_state.get('uploader_version', 0)}"
     )
     
-    if uploaded_files:
+    # If files were previously uploaded, but are now removed/cleared
+    if not uploaded_files and st.session_state["last_uploaded_name"] is not None:
+        reset_analysis_state(clear_files=True)
+        st.rerun()
+        
+    elif uploaded_files:
         current_names = [f.name for f in uploaded_files]
         if st.session_state["last_uploaded_name"] != current_names:
-            st.session_state["analysis_bundle"] = None
-            st.session_state["df_raw"] = None
-            st.session_state["chat_history"] = []
+            reset_analysis_state(clear_files=True)
             st.session_state["last_uploaded_name"] = current_names
-            st.session_state["uploaded_dfs"] = {}
-            st.session_state["is_preprocessed"] = False
-            st.session_state["hidden_columns"] = []
-            st.session_state["excluded_columns"] = []
-            st.session_state["join_configs"] = []
-            st.session_state["detected_pii"] = []
-            st.session_state["detected_ids"] = []
             st.rerun()
             
         for f in uploaded_files:
@@ -256,6 +304,7 @@ else:
                     "Select Primary Table (starting point)",
                     options=files,
                     index=0,
+                    on_change=reset_analysis_state,
                     help="Choose the main/base dataset. The other tables will join into or build off of this table."
                 )
                 
@@ -320,14 +369,16 @@ else:
                                 f"Join Type for {table}",
                                 options=["left", "inner", "right", "outer"],
                                 index=["left", "inner", "right", "outer"].index(jc["join_type"]),
-                                key=f"jt_{table}"
+                                key=f"jt_{table}",
+                                on_change=reset_analysis_state
                             )
                         with col2:
                             jw = st.selectbox(
                                 f"Join With (Target Table)",
                                 options=joined_so_far,
                                 index=joined_so_far.index(jc["join_with"]) if jc["join_with"] in joined_so_far else 0,
-                                key=f"jw_{table}"
+                                key=f"jw_{table}",
+                                on_change=reset_analysis_state
                             )
                         with col3:
                             cols_this = list(st.session_state["uploaded_dfs"][table].columns)
@@ -335,7 +386,8 @@ else:
                                 f"Key in `{table}`",
                                 options=cols_this,
                                 index=cols_this.index(jc["key_this"]) if jc["key_this"] in cols_this else 0,
-                                key=f"kt_{table}"
+                                key=f"kt_{table}",
+                                on_change=reset_analysis_state
                             )
                         with col4:
                             cols_that = list(st.session_state["uploaded_dfs"][jw].columns)
@@ -343,7 +395,8 @@ else:
                                 f"Key in `{jw}`",
                                 options=cols_that,
                                 index=cols_that.index(jc["key_that"]) if jc["key_that"] in cols_that else 0,
-                                key=f"kthat_{table}"
+                                key=f"kthat_{table}",
+                                on_change=reset_analysis_state
                             )
                         
                         df_this = st.session_state["uploaded_dfs"][table]
@@ -406,7 +459,7 @@ else:
             else:
                 st.success(f"Merged Master Dataset Ready: `{st.session_state['df_raw'].shape[0]:,}` rows × `{st.session_state['df_raw'].shape[1]:,}` columns.")
                 if st.button("🔄 Reset Merge Configuration"):
-                    st.session_state["df_raw"] = None
+                    reset_analysis_state(clear_files=False)
                     st.rerun()
 
 # Welcome / stop if df_raw is None
