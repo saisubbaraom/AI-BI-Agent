@@ -1,18 +1,17 @@
 # Business Analyst AI Agent 📊🤖
 
-An intelligent, multi-agent business analytics web application that acts as a professional Business Analyst and Strategy Consultant. Users upload raw data files (CSV, Excel, or Parquet), and the platform automatically profiles data quality, identifies the domain, calculates key metrics, creates Plotly charts, writes executive reports via Grok LLM (xAI), and supports conversational analytics using a hybrid RAG chat.
+An intelligent, multi-agent business analytics web application that acts as a professional Business Analyst and Strategy Consultant. Users upload raw data files (CSV, Excel, or Parquet), and the platform automatically profiles data quality, identifies the domain/theme dynamically, calculates key metrics, creates Plotly charts, writes executive reports via Grok LLM (xAI), and supports conversational analytics using a hybrid RAG chat.
 
 ---
 
-## 🏗️ Multi-Agent Architecture
+## 🏗️ Core Architecture & Features
 
 The system coordinates specialized agents to analyze your datasets:
-1. **Data Profiling Agent**: Audits data structures, reports quality stats, flags missing records, detects outliers, and isolates customer demographic categories.
-2. **KPI Detection Agent**: Detects the business domain (Sales, Marketing, HR, or Finance) and calculates domain-specific metrics.
-3. **Visualization Agent**: Evaluates variables to generate standard, interactive Plotly dashboard charts, and supports custom plots.
-4. **Business Insights Agent**: Narrates the data trends, summary observations, and operational bottlenecks by querying the xAI Grok LLM.
-5. **Recommendation Agent**: Formulates high-priority action plans detailing priority rankings, expected impact, and confidence scores.
-6. **Chat Agent**: Drives conversational data consultancies using an advanced hybrid RAG retriever over statistical tables and reports.
+1. **Dataset Intelligence Agent**: Profiles schemas, runs heuristics to auto-flag PII & IDs, infers custom dataset themes (e.g. EV adoption, patient healthcare), suggests custom business KPIs with Pandas expressions, and designs visualization configurations.
+2. **Relationship & Merge Planner**: Scans multiple datasets, suggests joins, calculates key overlap coverage, flags duplicate warnings, shows estimated row counts, and renders an interactive **Mermaid relationship graph** showing table connections.
+3. **Data Preprocessing Column Wizard**: Lets users choose how to treat columns prior to running analysis: **Keep** (full use), **Hide** (remove from front-end charts/KPIs but retain in database for AI consultant Q&A), or **Exclude** (drop completely from dataset).
+4. **Business Insights & Strategy Agents**: Synthesizes narrative observations, trends, market opportunities, and operational risks, providing ranked operational recommendation checklists with impact/confidence scores.
+5. **AI Consultant Chat**: Supports full conversational analysis over your data using a hybrid retrieval mechanism (combining semantic document search over insights with a structured **Pandas Query Engine** that translates questions into secure Python aggregations).
 
 ---
 
@@ -35,7 +34,13 @@ XAI_API_KEY=your_grok_api_key_here
 ```
 *Note: You can also enter your API key directly inside the Streamlit sidebar.*
 
-### 3. Start the Web App
+### 3. Run Verification Tests
+Verify the pipeline works correctly with standard and universal datasets:
+```bash
+python -m scratch.test_universal_pipeline
+```
+
+### 4. Start the Web App
 Run the Streamlit server to open the dashboard in your default browser:
 ```bash
 streamlit run app.py
@@ -43,11 +48,5 @@ streamlit run app.py
 
 ---
 
-## 💡 Supported Dataset Domains
-
-The KPI detection engine maps concepts based on columns, including:
-- **Sales / E-Commerce**: Calculates Total Revenue, Average Order Value (AOV), Profit Margin, Average Value per Customer (CLV), and Units Sold.
-- **Marketing / Advertising**: Calculates Spend, Clicks, Impressions, CPA, CVR, CTR, CPC, and ROAS.
-- **HR / Talent Management**: Calculates Headcount, Attrition Rate, Average Salary, and Average Performance Score.
-- **Finance / Ledgers**: Calculates Total Revenue, Expenses, Net Profit Margin, ROI, and Asset/Liability ratio.
-- **Generic Tabular**: Computes descriptive statistics (sums, means, medians, ranges) grouped by category.
+## 📖 Comprehensive Documentation
+Detailed explanations of the architecture, file layout, data lifecycle flows, and mathematical matching formulas are available in the [documentation.md](file:///C:/Users/saisu/.gemini/antigravity-ide/brain/f1460ded-9838-43a9-b192-3b9f5dd1c06c/documentation.md) artifact.
