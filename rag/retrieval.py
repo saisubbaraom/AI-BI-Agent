@@ -96,9 +96,10 @@ class StructuredPandasQueryEngine:
     Safely translates natural language queries into structured JSON database operations,
     runs them using Pandas, and formats results.
     """
-    def __init__(self, df: pd.DataFrame, llm):
+    def __init__(self, df: pd.DataFrame, llm, hidden_columns: list = None):
         self.df = df.copy()
         self.llm = llm
+        self.hidden_columns = hidden_columns or []
         
         # Auto-compute profit column if revenue/cost or revenue_generated/spend are present
         if "revenue" in self.df.columns and "cost" in self.df.columns:
@@ -165,6 +166,7 @@ class StructuredPandasQueryEngine:
             ("user", (
                 "Columns: {columns}\n"
                 "Data Types: {dtypes}\n"
+                "Hidden Columns: {hidden_columns} (Note: These columns exist in the database and can be queried, but they are hidden from the user's dashboard view. If they ask about hidden column data, you can query it but mention they are hidden.)\n"
                 "Sample Rows: {sample}\n\n"
                 "{recent_chat}"
                 "Current Question: {question}"
@@ -176,6 +178,7 @@ class StructuredPandasQueryEngine:
             res = chain.invoke({
                 "columns": columns,
                 "dtypes": dtypes,
+                "hidden_columns": ", ".join(self.hidden_columns) if self.hidden_columns else "None",
                 "sample": json.dumps(sample_data),
                 "recent_chat": recent_chat_context,
                 "question": question

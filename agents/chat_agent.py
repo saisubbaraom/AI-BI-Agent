@@ -14,14 +14,16 @@ class ChatAgent(BaseAgent):
         )
         self.df = df
         self.doc_store = doc_store
+        self.hidden_columns = []
         self.query_engine = None
 
-    def set_context(self, df, doc_store):
+    def set_context(self, df, doc_store, hidden_columns=None):
         """Update dataset and document store context."""
         self.df = df
         self.doc_store = doc_store
+        self.hidden_columns = hidden_columns or []
         if df is not None:
-            self.query_engine = StructuredPandasQueryEngine(df, self.llm)
+            self.query_engine = StructuredPandasQueryEngine(df, self.llm, hidden_columns=self.hidden_columns)
 
     def run(self, question: str, chat_history: list, chat_summary: str = None) -> str:
         """
@@ -72,6 +74,13 @@ class ChatAgent(BaseAgent):
             )
             if chat_summary:
                 system_content += f"=== CONVERSATION SUMMARY SO FAR ===\n{chat_summary}\n\n"
+
+            if self.hidden_columns:
+                system_content += (
+                    f"=== HIDDEN COLUMNS INFO ===\n"
+                    f"The following columns are hidden from the user's dashboard view, but they still exist in the database and can be queried if the user asks: {', '.join(self.hidden_columns)}.\n"
+                    "If the user asks questions about hidden columns, explain that they were hidden from the dashboard, but you are querying them anyway.\n\n"
+                )
 
             system_content += (
                 "When answering:\n"

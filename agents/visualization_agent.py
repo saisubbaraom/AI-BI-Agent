@@ -19,17 +19,64 @@ class VisualizationAgent(BaseAgent):
             role="Specialist in designing and building beautiful, interactive data visualizations using Plotly."
         )
 
-    def run(self, df: pd.DataFrame, domain: str, col_map: dict) -> dict:
+    def run(self, df: pd.DataFrame, domain: str, col_map: dict, suggested_charts: list = None) -> dict:
         """
         Scans columns and generates a list of recommended chart configurations and figures.
-        Returns:
-            dict of recommended charts where keys are names and values are dicts containing type, title, and the Plotly Figure.
+        If suggested_charts is provided (from the intelligence agent), we build those.
+        Otherwise, we fall back to default template rules.
         """
         charts = {}
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         numeric_cols_no_id = [c for c in numeric_cols if not c.lower().endswith("id")]
         categorical_cols = df.select_dtypes(include=[object, "category"]).columns.tolist()
         
+        # 1. Build dynamic charts if suggested by Dataset Intelligence
+        if suggested_charts:
+            for chart_def in suggested_charts:
+                c_id = chart_def.get("id")
+                c_title = chart_def.get("title", "Chart")
+                c_type = chart_def.get("type", "bar")
+                x = chart_def.get("x_col")
+                y = chart_def.get("y_col")
+                color = chart_def.get("color_col")
+                
+                # Validation: check that the columns exist in df
+                if not x or x not in df.columns:
+                    continue
+                if y and y not in df.columns:
+                    y = None
+                if color and color not in df.columns:
+                    color = None
+                    
+                try:
+                    # Let build_custom_chart handle aggregations
+                    fig = self.build_custom_chart(df, chart_type=c_type, x_col=x, y_col=y, color_col=color)
+                    # Update layout title to match the recommended title
+                    fig.update_layout(title=c_title)
+                    charts[c_id] = {
+                        "type": c_type,
+                        "title": c_title,
+                        "fig": fig
+                    }
+                except Exception as e:
+                    print(f"Failed to build suggested chart '{c_title}' ({c_type}) on columns x={x}, y={y}: {e}")
+                    
+            # Always add a correlation heatmap if not already and we have numeric columns
+            if "correlation_heatmap" not in charts and len(numeric_cols_no_id) >= 2:
+                try:
+                    from analytics.charts import create_correlation_heatmap
+                    charts["correlation_heatmap"] = {
+                        "type": "heatmap",
+                        "title": "Correlation Heatmap",
+                        "fig": create_correlation_heatmap(df, "Numeric Feature Correlations")
+                    }
+                except Exception as e:
+                    print(f"Failed to generate correlation heatmap: {e}")
+                    
+            if charts:
+                return charts
+
+        # 2. Default Fallback Matching Logic
         # 1. Heatmap (for numeric variables)
         if len(numeric_cols_no_id) >= 2:
             charts["correlation_heatmap"] = {
@@ -92,9 +139,9 @@ class VisualizationAgent(BaseAgent):
                 df_cat = df_cat.sort_values(by=num_col, ascending=False).head(15)
                 
                 charts["categorical_bar"] = {
-                    "type": "bar",
-                    "title": f"{num_col.replace('_', ' ').title()} by {cat_col.replace('_', ' ').title()}",
-                    "fig": create_bar_chart(df_cat, cat_col, num_col, f"Total {num_col.replace('_', ' ').title()} by {cat_col.replace('_', ' ').title()}")
+                     "type": "bar",
+                     "title": f"{num_col.replace('_', ' ').title()} by {cat_col.replace('_', ' ').title()}",
+                     "fig": create_bar_chart(df_cat, cat_col, num_col, f"Total {num_col.replace('_', ' ').title()} by {cat_col.replace('_', ' ').title()}")
                 }
                 
                 # If category has <= 7 distinct values, do a pie chart too
